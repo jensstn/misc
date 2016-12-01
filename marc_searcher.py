@@ -44,14 +44,15 @@ example:
         "specified any number of times")
     parser.add_option("-f", "--fields", metavar="fields",
         help="fields to output, separated by commas")
+    parser.add_option("-c", "--count", metavar="field count",
+        action="append", nargs=2,
+        help="find records with the number of fields")
     (options, positional_args) = parser.parse_args()
 
     if len(positional_args) < 1:
         parser.error("too few arguments")
-    if options.search is None and options.general_search is None:
-        parser.error("missing -s or -g")
-    if options.search is not None and options.general_search is not None:
-        parser.error("-s and -g are mutualy exclusive")
+    if options.search is None and options.general_search is None and options.count is None:
+        parser.error("missing -s, -g, or -c")
 
     # optparse understøtter ikke navngivne positionsargumenter,
     # så det her er en efterligning af udseendet i argparse
@@ -74,7 +75,7 @@ def main():
         records = t.split("\n\n")
         for r in records:
             r = Record(r)
-            found = False
+            found_list = [None, None, None]
             if args.search is not None:
                 f_dict = {field: False for field, _ in args.search}
                 for field, query in args.search:
@@ -83,13 +84,38 @@ def main():
                             if re.search(query, f) is not None:
                                 f_dict[field] = True
                                 break
-                found = False not in f_dict.values()
-            elif args.general_search is not None:
+                found_list[0] = False not in f_dict.values()
+            if args.general_search is not None:
+                found_list[1] = False
                 for field in r.values():
                     if re.search(args.general_search, "\n".join(field)) is not None:
-                        found = True
+                        found_list[1] = True
                         break
-            if found:
+            if args.count is not None:
+                f_dict = {field: False for field, _ in args.count}
+                for field, count in args.count:
+                    try:
+                        comp = False
+                        if field in r:
+                            if count[-1] == "+":
+                                comp = len(r[field]) >= int(count[:-1])
+                            elif re.search("\d+-\d+", count) is not None:
+                                count = count.split("-")
+                                comp = len(r[field]) >= int(count[0]) and len(
+                                    r[field]) <= int(count[1])
+                            elif count[0] == "-":
+                                comp = len(r[field]) <= int(count[1:])
+                            else:
+                                comp = len(r[field]) == int(count)
+                        elif count == "0":
+                            comp = True
+                        f_dict[field] = comp
+                    except ValueError as e:
+                        print("error when handling option -c:\n{}"
+                            .format(e))
+                        sys.exit(1)
+                found_list[2] = False not in f_dict.values()
+            if False not in found_list:
                 if args.fields is not None and args.fields != "":
                     for fld in args.fields.split(","):
                         if fld in r:
