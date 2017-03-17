@@ -12,7 +12,49 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 base_url = "https://app.scrumdo.com/api/v3/"
-auth = None
+
+class ScrumdoContext(object):
+    def __init__(self, auth, organization, project):
+        self.auth = auth
+        self.organization = organization
+        self.project = project
+
+    def open_page(self, url, data=None):
+        # http basic auth
+        # https://en.wikipedia.org/wiki/Basic_access_authentication
+        # https://tools.ietf.org/html/rfc2617
+        headers = {"Authorization":
+            "Basic {}".format(self.auth)}
+        req = urllib.request.Request(url, data, headers)
+        p = urllib.request.urlopen(req)
+        return p.read().decode("utf8")
+
+    def get_stories(self):
+        t = self.open_page("{}/organizations/{}/projects/{}/stories/".format(
+            base_url, self.organisation, self.project))
+        return json.loads(t)
+
+    def search_stories(self, query):
+        data = urllib.parse.urlencode({"q": query})
+        t = self.open_page("{}/organizations/{}/projects/{}/search?{}".format(
+            base_url, self.organization, self.project, data))
+        return json.loads(t)
+
+    def get_story(self, story_id):
+        t = self.open_page("{}/organizations/{}/projects/{}/stories/{}".format(
+            base_url, self.organization, self.project, str(story_id)))
+        return json.loads(t)
+
+    def find_story(self, number, prefix=None):
+        story_name = make_story_name(prefix, number)
+        stories = self.search_stories(story_name)
+        # TODO: hvad hvis len(items) er < count
+        for story in stories["items"]:
+            if prefix is not None and prefix != story["prefix"]:
+                continue
+            if story["number"] == number:
+                return story["id"]
+        return -1
 
 def setup_args():
     parser = argparse.ArgumentParser()
@@ -24,29 +66,6 @@ def setup_args():
     parser.add_argument("--config-file", default=os.path.join(
         os.getenv("HOME"), ".scrumdorc"))
     return parser.parse_args()
-
-def open_page(url, data=None):
-    # http basic auth
-    # https://en.wikipedia.org/wiki/Basic_access_authentication
-    # https://tools.ietf.org/html/rfc2617
-    headers = {"Authorization":
-        "Basic {}".format(auth)}
-    req = urllib.request.Request(url, data, headers)
-    p = urllib.request.urlopen(req)
-    return p.read().decode("utf8")
-
-def get_stories(organisation, project):
-    t = open_page("{}/organizations/{}/projects/{}/stories/".format(base_url, organisation, project))
-    return json.loads(t)
-
-def search_stories(organisation, project, query):
-    data = urllib.parse.urlencode({"q": query})
-    t = open_page("{}/organizations/{}/projects/{}/search?{}".format(base_url, organisation, project, data))
-    return json.loads(t)
-
-def get_story(organisation, project, story_id):
-    t = open_page("{}/organizations/{}/projects/{}/stories/{}".format(base_url, organisation, project, str(story_id)))
-    return json.loads(t)
 
 def get_strings(xml_string):
     if xml_string == "":
@@ -94,17 +113,6 @@ def make_story_name(prefix, number):
     else:
         return prefix + "-" + str(number)
 
-def find_story(organisation, project, number, prefix=None):
-    story_name = make_story_name(prefix, number)
-    stories = search_stories(organisation, project, story_name)
-    # TODO: hvad hvis len(items) er < count
-    for story in stories["items"]:
-        if prefix is not None and prefix != story["prefix"]:
-            continue
-        if story["number"] == number:
-            return story["id"]
-    return -1
-
 def read_config(config_path):
     if os.path.exists(config_path):
         config = {}
@@ -118,22 +126,22 @@ def read_config(config_path):
         return config
     return None
 
-def set_auth(args, config):
-    global auth
+def get_auth(args, config):
     if args.auth is None and config is not None and "auth" in config:
-        auth = config["auth"]
+        return config["auth"]
     elif args.auth is not None:
-        auth = args.auth
+        return args.auth
     else:
         user = input("scrumdo username: ")
         psswd = getpass.getpass("scrumdo password: ")
         auth = base64.b64encode("{}:{}".format(user, psswd).encode("utf8"))
-        auth = auth.decode("utf8")
+        return auth.decode("utf8")
 
 if __name__ == "__main__":
     args = setup_args()
     config = read_config(args.config_file)
-    set_auth(args, config)
+    auth = get_auth(args, config)
+    scrumdo_context = ScrumdoContext(auth, args.organization, args.project)
 
     parts = re.search("([a-zA-Z]+)?-?(\d+)", args.story_name)
     if parts is None:
@@ -142,6 +150,6 @@ if __name__ == "__main__":
         sys.exit(1)
     prefix = parts.groups()[0]
     number = parts.groups()[1]
-    story_id = find_story(args.organization, args.project, int(number), prefix)
+    story_id = scrumdo_context.find_story(int(number), prefix)
     if story_id != -1:
-        print_story(get_story(args.organization, args.project, story_id))
+        print_story(scrumdo_context.get_story(story_id))
