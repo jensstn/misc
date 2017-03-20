@@ -137,13 +137,8 @@ def get_auth(args, config):
         auth = base64.b64encode("{}:{}".format(user, psswd).encode("utf8"))
         return auth.decode("utf8")
 
-if __name__ == "__main__":
-    args = setup_args()
-    config = read_config(args.config_file)
-    auth = get_auth(args, config)
-    scrumdo_context = ScrumdoContext(auth, args.organization, args.project)
-
-    parts = re.search("([a-zA-Z]+)?-?(\d+)", args.story_name)
+def search_for_name(story_name):
+    parts = re.search("([a-zA-Z]+)?-?(\d+)", story_name)
     if parts is None:
         print("unknown story id format: {}".format(sys.argv[1]),
             file=sys.stderr)
@@ -152,4 +147,18 @@ if __name__ == "__main__":
     number = parts.groups()[1]
     story_id = scrumdo_context.find_story(int(number), prefix)
     if story_id != -1:
-        print_story(scrumdo_context.get_story(story_id))
+        return scrumdo_context.get_story(story_id)
+    return None
+
+if __name__ == "__main__":
+    args = setup_args()
+    config = read_config(args.config_file)
+    auth = get_auth(args, config)
+    scrumdo_context = ScrumdoContext(auth, args.organization, args.project)
+    story_json = search_for_name(args.story_name)
+    if story_json is not None:
+        print_story(story_json)
+    else:
+        print("no story found with name {}".format(args.story_name),
+            file=sys.stderr)
+        sys.exit(1)
