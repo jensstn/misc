@@ -40,6 +40,19 @@ class ScrumdoContext(object):
             base_url, self.organization, self.project, data))
         return json.loads(t)
 
+    def search_for_name(self, story_name):
+        parts = re.search("([a-zA-Z]+)?-?(\d+)", story_name)
+        if parts is None:
+            print("unknown story id format: {}".format(sys.argv[1]),
+                file=sys.stderr)
+            sys.exit(1)
+        prefix = parts.groups()[0]
+        number = parts.groups()[1]
+        story_id = self.find_story(int(number), prefix)
+        if story_id != -1:
+            return self.get_story(story_id)
+        return None
+
     def get_story(self, story_id):
         t = self.open_page("{}/organizations/{}/projects/{}/stories/{}".format(
             base_url, self.organization, self.project, str(story_id)))
@@ -137,25 +150,12 @@ def get_auth(args, config):
         auth = base64.b64encode("{}:{}".format(user, psswd).encode("utf8"))
         return auth.decode("utf8")
 
-def search_for_name(story_name):
-    parts = re.search("([a-zA-Z]+)?-?(\d+)", story_name)
-    if parts is None:
-        print("unknown story id format: {}".format(sys.argv[1]),
-            file=sys.stderr)
-        sys.exit(1)
-    prefix = parts.groups()[0]
-    number = parts.groups()[1]
-    story_id = scrumdo_context.find_story(int(number), prefix)
-    if story_id != -1:
-        return scrumdo_context.get_story(story_id)
-    return None
-
 if __name__ == "__main__":
     args = setup_args()
     config = read_config(args.config_file)
     auth = get_auth(args, config)
     scrumdo_context = ScrumdoContext(auth, args.organization, args.project)
-    story_json = search_for_name(args.story_name)
+    story_json = scrumdo_context.search_for_name(args.story_name)
     if story_json is not None:
         print_story(story_json)
     else:
