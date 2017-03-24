@@ -12,6 +12,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 base_url = "https://app.scrumdo.com/api/v3/"
+default_config_path = os.path.join(os.getenv("HOME"), ".scrumdorc")
 
 points = ["?", "0", "0.5", "1", "2", "3", "5", "8", "13", "20", "40", "100",
     "Infinite"]
@@ -99,8 +100,7 @@ def setup_args():
         "scrumdo in the format username:password encoded as base64")
     parser.add_argument("-o", "--organization", default="dbc")
     parser.add_argument("-p", "--project", default="data-indud")
-    parser.add_argument("--config-file", default=os.path.join(
-        os.getenv("HOME"), ".scrumdorc"))
+    parser.add_argument("--config-file", default=default_config_path)
     return parser.parse_args()
 
 def get_strings(xml_string):
