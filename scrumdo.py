@@ -13,6 +13,9 @@ import xml.etree.ElementTree as ET
 
 base_url = "https://app.scrumdo.com/api/v3/"
 
+points = ["?", "0", "0.5", "1", "2", "3", "5", "8", "13", "20", "40", "100",
+    "Infinite"]
+
 class ScrumdoObject(object):
     def __init__(self, name, slug, _id):
         self.name = name
