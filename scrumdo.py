@@ -13,6 +13,17 @@ import xml.etree.ElementTree as ET
 
 base_url = "https://app.scrumdo.com/api/v3/"
 
+class ScrumdoObject(object):
+    def __init__(self, name, slug, _id):
+        self.name = name
+        self.slug = slug
+        self._id = _id
+
+class IterationObject(ScrumdoObject):
+    def __init__(self, name, url, _id):
+        ScrumdoObject.__init__(self, name, None, _id)
+        self.url = url
+
 class ScrumdoContext(object):
     def __init__(self, auth, organization, project):
         self.auth = auth
@@ -68,6 +79,15 @@ class ScrumdoContext(object):
             if story["number"] == number:
                 return story["id"]
         return -1
+
+    def get_iterations(self):
+        t = self.open_page("{}/organizations/{}/projects/{}/iterations".format(
+            base_url, self.organization, self.project))
+        iterations = []
+        for it in json.loads(t):
+            obj = IterationObject(it["name"], it["url"], it["id"])
+            iterations.append(obj)
+        return iterations
 
 def setup_args():
     parser = argparse.ArgumentParser()
