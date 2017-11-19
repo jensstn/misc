@@ -30,6 +30,42 @@ class IterationObject(ScrumdoObject):
         ScrumdoObject.__init__(self, name, None, _id)
         self.url = url
 
+class ScrumdoStory(object):
+    def __init__(self, story_json):
+        self.name = make_story_name(story_json["prefix"],
+            story_json["number"])
+        self.summary = get_strings(story_json["summary"])
+        self.details = get_strings(story_json["detail"])
+        self.accept_criteria = get_strings(story_json["extra_1"])
+        self.note = get_strings(story_json["extra_3"])
+        self.permalink = "https://app.scrumdo.com/projects/story_permalink/{}"\
+            .format(story_json["id"])
+        self.tags = get_strings(story_json["tags"])
+        self.labels = "".join(get_strings(l["name"]) for l
+            in story_json["labels"])
+
+    def print_story(self):
+        print("""{}: {}
+
+Details:
+\t{}
+
+Accept criteria:
+\t{}
+
+Note:
+\t{}
+
+Tags:
+\t{}
+
+Labels:
+\t{}
+
+[Permalink: {}]""".format(self.name, self.summary, self.details,
+            self.accept_criteria, self.note, self.tags, self.labels,
+            self.permalink))
+
 class ScrumdoContext(object):
     def __init__(self, auth, organization, project):
         self.auth = auth
@@ -135,15 +171,8 @@ def break_string(s):
     return s_out.strip()
 
 def print_story(story_json):
-    name = make_story_name(story_json["prefix"], story_json["number"])
-    accept_criteria = story_json["extra_1"]
-    note = story_json["extra_3"]
-    s = "{}: {}\n\nDetails:\n\t{}\n\nAccept criteria:\n\t{}\n\n"\
-        "Note:\n\t{}\n\n[Permalink: https://app.scrumdo.com/projects/"\
-        "story_permalink/{}]".format(name, get_strings(story_json["summary"]),
-        get_strings(story_json["detail"]), get_strings(accept_criteria),
-        get_strings(note), story_json["id"])
-    print(s)
+    story = ScrumdoStory(story_json)
+    story.print_story()
 
 def make_story_name(prefix, number):
     if prefix is None or prefix == "":
