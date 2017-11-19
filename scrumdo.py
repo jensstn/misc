@@ -11,6 +11,8 @@ import sys
 import urllib.request
 import xml.etree.ElementTree as ET
 
+# https://app.scrumdo.com/api/v3/docs
+
 base_url = "https://app.scrumdo.com/api/v3/"
 default_config_path = os.path.join(os.getenv("HOME"), ".scrumdorc")
 
