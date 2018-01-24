@@ -19,6 +19,9 @@ default_config_path = os.path.join(os.getenv("HOME"), ".scrumdorc")
 points = ["?", "0", "0.5", "1", "2", "3", "5", "8", "13", "20", "40", "100",
     "Infinite"]
 
+class ScrumdoException(Exception):
+    pass
+
 class ScrumdoObject(object):
     def __init__(self, name, slug, _id):
         self.name = name
@@ -144,17 +147,25 @@ def setup_args():
 def get_strings(xml_string):
     if xml_string == "":
         return ""
+    # unecsape because the html comes in with certain characters escaped
+    # with &, ex. &aelig;
     xml_string = html.unescape(xml_string)
+    # replace because unescape results in &amp; being unescaped to & even
+    # though they need to be escaped in the xml
+    xml_string = xml_string.replace("&", "&amp;")
     xml_string = "<wrapper>" + xml_string + "</wrapper>"
-    root = ET.fromstring(xml_string)
-    children = [root]
-    s = ""
-    while children:
-        child = children.pop()
-        if child.text is not None:
-            s += child.text + "\n"
-        children += reversed(child.getchildren())
-    return break_string(s)
+    try:
+        root = ET.fromstring(xml_string)
+        children = [root]
+        s = ""
+        while children:
+            child = children.pop()
+            if child.text is not None:
+                s += child.text + "\n"
+            children += reversed(child.getchildren())
+        return break_string(s)
+    except ET.ParseError as e:
+        raise ScrumdoException("error parsing xml: {}\n{}".format(xml_string, e))
 
 def break_string(s):
     s = s.replace("\n", " $$$ ")
@@ -208,11 +219,15 @@ if __name__ == "__main__":
     args = setup_args()
     config = read_config(args.config_file)
     auth = get_auth(args, config)
-    scrumdo_context = ScrumdoContext(auth, args.organization, args.project)
-    story_json = scrumdo_context.search_for_name(args.story_name)
-    if story_json is not None:
-        print_story(story_json)
-    else:
-        print("no story found with name {}".format(args.story_name),
-            file=sys.stderr)
+    try:
+        scrumdo_context = ScrumdoContext(auth, args.organization, args.project)
+        story_json = scrumdo_context.search_for_name(args.story_name)
+        if story_json is not None:
+            print_story(story_json)
+        else:
+            print("no story found with name {}".format(args.story_name),
+                file=sys.stderr)
+            sys.exit(1)
+    except ScrumdoException as e:
+        print(e, file=sys.stderr)
         sys.exit(1)
