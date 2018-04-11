@@ -44,7 +44,7 @@ class ScrumdoStory(object):
         self.permalink = "https://app.scrumdo.com/projects/story_permalink/{}"\
             .format(story_json["id"])
         self.tags = get_strings(story_json["tags"])
-        self.labels = "".join(get_strings(l["name"]) for l
+        self.labels = "\n\t".join(get_strings(l["name"]) for l
             in story_json["labels"])
 
     def print_story(self):
